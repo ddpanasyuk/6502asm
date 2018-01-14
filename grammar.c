@@ -1,6 +1,12 @@
 #include "grammar.h"
 
 static struct TOKEN_T* tok_curr = 0;
+static int instruction_curr = 0;
+static unsigned short flags_curr = 0;
+static void* op1 = 0;
+static void* op2 = 0;
+static char op1_type = 0;
+static char op2_type = 0;
 
 #define TOK_TYPE() tok_curr->type
 #define TOK_DATA() tok_curr->data
@@ -19,22 +25,6 @@ int TOK_EXPECTS_NEXT(char type)
 	tok_release(tok_curr);
 	tok_curr = tok_get_expects(type);
 	return (tok_curr ? 1 : 0);
-}
-
-int accepts(unsigned int type)
-{
-	return 0;
-}
-
-int expects(unsigned int type)
-{
-	tok_curr = tok_get();
-	if(tok_curr)
-	{
-		if(tok_curr->type == type)
-			return 1;
-	}
-	return 0;
 }
 
 int begin()
@@ -147,12 +137,50 @@ int expr_word()
 int expr_instruction()
 {
 	printf("6502asm: entered expr_instruction\n");
+	flags_curr = 0;
+	instruction_curr = 0;
+	op1 = 0;
+	op2 = 0;
+	op1_type = 0;
+	op2_type = 0;
 	int i;
 	for(i = 0; i < INSTRUCTION_COUNT; i++)
 	{
 		if(!strcmp(TOK_DATA(), instruction_strings[i])) // if match
 		{
-			return (*instruction_pointers[i])();
+			//return (*instruction_pointers[i])();
+			instruction_curr = i;
+			if(TOK_GET_NEXT())
+			{
+				switch(TOK_TYPE())
+				{
+					case TOK_LEFT_PARA:
+						return expr_indirect_operand();
+					case TOK_POUND:
+						return expr_immediate_operand();
+					case TOK_STRING:
+						flags_curr |= ASSEMBLY_FLAG_ABSOLUTE;
+						op1_type = ASSEMBLY_OP_FLAG_LABEL;
+						op1 = strdup(TOK_DATA());
+						return expr_address_operand();
+					case TOK_NUM:
+						if((int)TOK_DATA() > 0xFF)
+						{
+							flags_curr |= ASSEMBLY_FLAG_ABSOLUTE;
+							op1 = (void*)((int)TOK_DATA() & 0xFFFF);
+							op1_type = ASSEMBLY_OP_FLAG_NUMBER;
+						}
+						else
+						{
+							flags_curr |= ASSEMBLY_FLAG_ZERO_PAGE;
+							op1 = (void*)((int)TOK_DATA() & 0xFF);
+							op1_type = ASSEMBLY_OP_FLAG_NUMBER;
+						}
+						return expr_address_operand();
+					default:
+						return -1;
+				}
+			}
 		}
 	}
 	printf("6502asm: expr_instruction(): invalid instruction \"%s\" on line %i\n", TOK_DATA(), TOK_LINE());
@@ -170,8 +198,11 @@ int expr_indirect_operand()
 			{
 				if(TOK_EXPECTS_NEXT(TOK_STRING))
 				{
+					if(expr_set_x_y_flags())
+						return -1;
 					if(TOK_EXPECTS_NEXT(TOK_RIGHT_PARA))
 					{
+						flags_curr |= ASSEMBLY_FLAG_INDIRECT_INDEXED;
 						return expr_new_line();
 					}
 					return -1;
@@ -180,15 +211,31 @@ int expr_indirect_operand()
 			}
 			else if(TOK_TYPE() == TOK_RIGHT_PARA)
 			{
-				if(TOK_EXPECTS_NEXT(TOK_COMMA))
+				if(TOK_GET_NEXT())
 				{
-					if(TOK_EXPECTS_NEXT(TOK_STRING))
+					if(TOK_TYPE() == TOK_COMMA)
 					{
-						return expr_new_line();
+						flags_curr |= ASSEMBLY_FLAG_INDEXED_INDIRECT;
+						if(TOK_EXPECTS_NEXT(TOK_STRING))
+						{
+							if(expr_set_x_y_flags())
+								return -1;
+							return expr_new_line();
+						}
+						return -1;
+					}
+					else if(TOK_TYPE() == TOK_NEW_LINE)
+					{
+						flags_curr |= ASSEMBLY_FLAG_INDIRECT;
+						return begin();
+					}
+					else if(TOK_TYPE() == TOK_FILE_END)
+					{
+						flags_curr |= ASSEMBLY_FLAG_INDIRECT;
+						return 0;
 					}
 					return -1;
 				}
-				return -1;
 			}
 			return -1;
 		}
@@ -200,8 +247,11 @@ int expr_indirect_operand()
 int expr_immediate_operand()
 {
 	printf("6502asm: entered expr_immediate_operand()\n");
+	flags_curr |= ASSEMBLY_FLAG_IMMEDIATE;
 	if(TOK_EXPECTS_NEXT(TOK_NUM))
 	{
+		op1_type = ASSEMBLY_OP_FLAG_NUMBER;
+		op1 = TOK_DATA();
 		return expr_new_line();
 	}
 	return -1;
@@ -216,6 +266,8 @@ int expr_address_operand()
 		{
 			if(TOK_EXPECTS_NEXT(TOK_STRING))
 			{
+				if(expr_set_x_y_flags())
+					return -1;
 				return expr_new_line();
 			}
 		}
@@ -232,308 +284,20 @@ int expr_address_operand()
 	return -1;
 }
 
-// 01 instructions
-int instruction_ora()
+int expr_set_x_y_flags()
 {
-	printf("6502asm: entered expr_ora()\n");
-	if(TOK_GET_NEXT())
+	if(!strcmp(TOK_DATA(), "X"))
 	{
-		switch(TOK_TYPE())
-		{
-			case TOK_LEFT_PARA:
-				return expr_indirect_operand();
-			case TOK_POUND:
-				return expr_immediate_operand();
-			case TOK_NUM:
-			case TOK_STRING:
-				return expr_address_operand();
-			default:
-				return -1;
-		}
+		flags_curr |= ASSEMBLY_FLAG_X;
 	}
-	return -1;
-}
-
-int instruction_and()
-{
-	printf("6502asm: entered expr_and()\n");
-	return 0;
-}
-
-int instruction_eor()
-{
-	return 0;
-}
-
-int instruction_adc()
-{
-	return 0;
-}
-
-int instruction_sta()
-{
-	return 0;
-}
-
-int instruction_lda()
-{
-	return 0;
-}
-
-int instruction_cmp()
-{
-	return 0;
-}
-
-int instruction_sbc()
-{
-	return 0;
-}
-
-// 10 instructions
-int instruction_asl()
-{
-	return 0;
-}
-
-int instruction_rol()
-{
-	return 0;
-}
-
-int instruction_lsr()
-{
-	return 0;
-}
-
-int instruction_ror()
-{
-	return 0;
-}
-
-int instruction_stx()
-{
-	return 0;
-}
-
-int instruction_ldx()
-{
-	return 0;
-}
-
-int instruction_dec()
-{
-	return 0;
-}
-
-int instruction_inc()
-{
-	return 0;
-}
-
-// 00 instructions
-int instruction_bit()
-{
-	return 0;
-}
-
-int instruction_jmp()
-{
-	return 0;
-}
-
-int instruction_jmp_abs()
-{
-	return 0;
-}
-
-int instruction_sty()
-{
-	return 0;
-}
-
-int instruction_ldy()
-{
-	return 0;
-}
-
-int instruction_cpy()
-{
-	return 0;
-}
-
-int instruction_cpx()
-{
-	return 0;
-}
-
-// branch instructions
-int instruction_bpl()
-{
-	return 0;
-}
-
-int instruction_bmi()
-{
-	return 0;
-}
-
-int instruction_bvc()
-{
-	return 0;
-}
-
-int instruction_bvs()
-{
-	return 0;
-}
-
-int instruction_bcc()
-{
-	return 0;
-}
-
-int instruction_bcs()
-{
-	return 0;
-}
-
-int instruction_bne()
-{
-	return 0;
-}
-
-int instruction_beq()
-{
-	return 0;
-}
-
-int instruction_brk()
-{
-	return 0;
-}
-
-int instruction_jsr()
-{
-	return 0;
-}
-
-int instruction_rti()
-{
-	return 0;
-}
-
-int instruction_rts()
-{
-	return 0;
-}
-
-int instruction_php()
-{
-	return 0;
-}
-
-int instruction_plp()
-{
-	return 0;
-}
-
-int instruction_pha()
-{
-	return 0;
-}
-
-int instruction_pla()
-{
-	return 0;
-}
-
-int instruction_dey()
-{
-	return 0;
-}
-
-int instruction_tay()
-{
-	return 0;
-}
-
-int instruction_iny()
-{
-	return 0;
-}
-
-int instruction_inx()
-{
-	return 0;
-}
-
-int instruction_clc()
-{
-	return 0;
-}
-
-int instruction_sec()
-{
-	return 0;
-}
-
-int instruction_cli()
-{
-	return 0;
-}
-
-int instruction_sei()
-{
-	return 0;
-}
-
-int instruction_tya()
-{
-	return 0;
-}
-
-int instruction_clv()
-{
-	return 0;
-}
-
-int instruction_cld()
-{
-	return 0;
-}
-
-int instruction_sed()
-{
-	return 0;
-}
-
-int instruction_txa()
-{
-	return 0;
-}
-
-int instruction_txs()
-{
-	return 0;
-}
-
-int instruction_tax()
-{
-	return 0;
-}
-
-int instruction_tsx()
-{
-	return 0;
-}
-
-int instruction_dex()
-{
-	return 0;
-}
-
-int instruction_nop()
-{
+	else if(!strcmp(TOK_DATA(), "Y"))
+	{
+		flags_curr |= ASSEMBLY_FLAG_Y;
+	}
+	else
+	{
+		printf("6502asm: expr_set_x_y_flags(): unknown register \"%s\" used on line %i\n", TOK_DATA(), TOK_LINE());
+		return -1;
+	}
 	return 0;
 }
