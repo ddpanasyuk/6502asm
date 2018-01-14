@@ -2,6 +2,7 @@
 #define _GRAMMAR_H_
 
 #include "token.h"
+#include "instruction.h"
 
 int accepts(unsigned int type);
 int expects(unsigned int type);

@@ -7,10 +7,7 @@
 #include <ctype.h>
 #include "token.h"
 
-struct INSTRUCTION_T{
-	char* text;
-	int (*f)();
-};
+#define INSTRUCTION_COUNT 56
 
 // 01 instructions
 int instruction_ora();
@@ -18,7 +15,7 @@ int instruction_and();
 int instruction_eor();
 int instruction_adc();
 int instruction_sta();
-int instruction_lad();
+int instruction_lda();
 int instruction_cmp();
 int instruction_sbc();
 
@@ -81,6 +78,11 @@ int instruction_tsx();
 int instruction_dex();
 int instruction_nop();
 
-struct INSTRUCTION_T* is_instruction(char* src);
+int expr_indirect_operand();
+int expr_immediate_operand();
+int expr_address_operand();
+
+extern char* instruction_strings[];
+extern int (*instruction_pointers[])();
 
 #endif
