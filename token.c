@@ -93,6 +93,7 @@ struct TOKEN_T* tok_get()
 		switch(tok_tell)
 		{
 			case '$':
+				printf("6502asm: tok_get(): hex token\n");
 				if(!tok_num_read(0, 16, &tok_number))
 					return 0;
 				
@@ -213,8 +214,14 @@ int tok_num_read(char first, int base, unsigned short* dest)
 	{
 		if(fread(&tok_tell, 1, 1, f_global))
 		{
-			if(isdigit(tok_tell))
+			if(base == 16 && isxdigit(tok_tell))
+			{
 				buffer[i++] = tok_tell;
+			}
+			else if(base == 10 && isdigit(tok_tell))
+			{
+				buffer[i++] = tok_tell;
+			}
 			else
 			{
 				last = tok_tell;
@@ -229,19 +236,12 @@ int tok_num_read(char first, int base, unsigned short* dest)
 	}
 	while(i < 79);
 	
-	//if(tok_tell == EOF)
-	//{
-	//	buffer[i] = 0;
-	//	*dest = (unsigned short)strtoul(buffer, 0, base);
-	//	free(buffer);
-	//	return 1;
-	//}
 	if(!first && !i)
 	{
 		free(buffer);
 		return 0;
 	}
-	else if(first && i)
+	else if(i)
 	{
 		buffer[i] = 0;
 		*dest = (unsigned short)strtoul(buffer, 0, base);

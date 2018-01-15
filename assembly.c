@@ -54,6 +54,7 @@ int save_program_to_file(char* filename)
 
 int add_to_program(unsigned short flags, char type, char op1_type, void* op1, char op2_type, void* op2, int line)
 {
+	printf("6502asm: entered add_to_program()\n");
 	asm_line = line;
 	asm_type = type;
 	if(type < ASSEMBLY_TYPE_01)
@@ -120,7 +121,7 @@ int assembly_flags_to_addressing_offset_01(unsigned short asm_flags)
 		{
 			return 0b000;
 		}
-		else if(asm_flags & ASSEMBLY_FLAG_INDIRECT)
+		else
 		{
 			if(asm_flags & ASSEMBLY_FLAG_X)
 			{
@@ -167,7 +168,7 @@ int assembly_flags_to_addressing_offset_10(unsigned short asm_flags)
 	{
 		if(asm_flags & ASSEMBLY_FLAG_X || asm_flags & ASSEMBLY_FLAG_Y)
 		{
-			return 0b101;
+			return 0b100;
 		}
 		return 0b001;
 	}
@@ -179,7 +180,7 @@ int assembly_flags_to_addressing_offset_10(unsigned short asm_flags)
 	{
 		if(asm_flags & ASSEMBLY_FLAG_X || asm_flags & ASSEMBLY_FLAG_Y)
 		{
-			return 0b110;
+			return 0b101;
 		}
 		return 0b011;
 	}
