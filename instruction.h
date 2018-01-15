@@ -83,6 +83,12 @@ int expr_immediate_operand();
 int expr_address_operand();
 
 extern char* instruction_strings[];
-extern int (*instruction_pointers[])();
+//extern int (*instruction_pointers[])();
+
+extern char instruction_codes_01[][8];
+extern char instruction_has_addressing_mode_01[];
+
+extern char instruction_codes_10[][6];
+extern char instruction_has_addressing_mode_10[];
 
 #endif

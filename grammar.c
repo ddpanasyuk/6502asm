@@ -177,6 +177,16 @@ int expr_instruction()
 							op1_type = ASSEMBLY_OP_FLAG_NUMBER;
 						}
 						return expr_address_operand();
+					case TOK_NEW_LINE:
+						flags_curr |= ASSEMBLY_FLAG_ACCUMULATOR;
+						if(add_to_program(flags_curr, instruction_curr, op1_type, op1, op2_type, op2, TOK_LINE()))
+							return -1;
+						return begin();
+					case TOK_FILE_END:
+						flags_curr |= ASSEMBLY_FLAG_ACCUMULATOR;
+						if(add_to_program(flags_curr, instruction_curr, op1_type, op1, op2_type, op2, TOK_LINE()))
+							return -1;
+						return 0;
 					default:
 						return -1;
 				}
@@ -190,6 +200,7 @@ int expr_instruction()
 int expr_indirect_operand()
 {
 	printf("6502asm: entered expr_indirect_operand()\n");
+	flags_curr |= ASSEMBLY_FLAG_ZERO_PAGE;
 	if(TOK_EXPECTS_NEXT(TOK_NUM))
 	{
 		if(TOK_GET_NEXT()) 
@@ -203,6 +214,8 @@ int expr_indirect_operand()
 					if(TOK_EXPECTS_NEXT(TOK_RIGHT_PARA))
 					{
 						flags_curr |= ASSEMBLY_FLAG_INDIRECT_INDEXED;
+						if(add_to_program(flags_curr, instruction_curr, op1_type, op1, op2_type, op2, TOK_LINE()))
+							return -1;
 						return expr_new_line();
 					}
 					return -1;
@@ -220,6 +233,8 @@ int expr_indirect_operand()
 						{
 							if(expr_set_x_y_flags())
 								return -1;
+							if(add_to_program(flags_curr, instruction_curr, op1_type, op1, op2_type, op2, TOK_LINE()))
+								return -1;
 							return expr_new_line();
 						}
 						return -1;
@@ -227,11 +242,15 @@ int expr_indirect_operand()
 					else if(TOK_TYPE() == TOK_NEW_LINE)
 					{
 						flags_curr |= ASSEMBLY_FLAG_INDIRECT;
+						if(add_to_program(flags_curr, instruction_curr, op1_type, op1, op2_type, op2, TOK_LINE()))
+							return -1;
 						return begin();
 					}
 					else if(TOK_TYPE() == TOK_FILE_END)
 					{
 						flags_curr |= ASSEMBLY_FLAG_INDIRECT;
+						if(add_to_program(flags_curr, instruction_curr, op1_type, op1, op2_type, op2, TOK_LINE()))
+							return -1;
 						return 0;
 					}
 					return -1;
@@ -252,6 +271,8 @@ int expr_immediate_operand()
 	{
 		op1_type = ASSEMBLY_OP_FLAG_NUMBER;
 		op1 = TOK_DATA();
+		if(add_to_program(flags_curr, instruction_curr, op1_type, op1, op2_type, op2, TOK_LINE()))
+			return -1;
 		return expr_new_line();
 	}
 	return -1;
@@ -268,15 +289,21 @@ int expr_address_operand()
 			{
 				if(expr_set_x_y_flags())
 					return -1;
+				if(add_to_program(flags_curr, instruction_curr, op1_type, op1, op2_type, op2, TOK_LINE()))
+					return -1;
 				return expr_new_line();
 			}
 		}
 		else if(TOK_TYPE() == TOK_NEW_LINE)
 		{
+			if(add_to_program(flags_curr, instruction_curr, op1_type, op1, op2_type, op2, TOK_LINE()))
+				return -1;
 			return begin();
 		}
 		else if(TOK_TYPE() == TOK_FILE_END)
 		{
+			if(add_to_program(flags_curr, instruction_curr, op1_type, op1, op2_type, op2,TOK_LINE()))
+				return -1;
 			return 0;
 		}
 		return -1;
@@ -286,11 +313,11 @@ int expr_address_operand()
 
 int expr_set_x_y_flags()
 {
-	if(!strcmp(TOK_DATA(), "X"))
+	if(!strcmp(TOK_DATA(), "x"))
 	{
 		flags_curr |= ASSEMBLY_FLAG_X;
 	}
-	else if(!strcmp(TOK_DATA(), "Y"))
+	else if(!strcmp(TOK_DATA(), "y"))
 	{
 		flags_curr |= ASSEMBLY_FLAG_Y;
 	}

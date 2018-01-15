@@ -7,5 +7,6 @@
 
 #include "token.h"
 #include "grammar.h"
+#include "assembly.h"
 
 #endif
